@@ -1,0 +1,7 @@
+tour,speed_bin,min_speed_mph,max_speed_mph,n_body_serves
+ATP,slow,60.0,94.0,45600
+ATP,medium,95.0,109.0,45261
+ATP,fast,110.0,147.0,44909
+WTA,slow,60.0,84.0,35096
+WTA,medium,85.0,95.0,32765
+WTA,fast,96.0,152.0,33570

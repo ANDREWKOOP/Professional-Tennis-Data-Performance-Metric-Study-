@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.log
+
+# Raw public data is downloaded by run_tennis_project.ps1.
+data/raw/
+
+# Large derived row-level files can be regenerated.
+data/processed/merged_point_data.csv
+data/processed/body_serve_points.csv
+
+# Keep summary CSVs and PNG figures for portfolio review.

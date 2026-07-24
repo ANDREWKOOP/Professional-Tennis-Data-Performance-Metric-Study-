@@ -1,0 +1,6 @@
+dataset,test,statistic,p_value
+ATP,ANOVA return_win_pct by cluster,2.341244579458884,0.03455822053312411
+ATP,Cluster 0 vs other clusters,-1.75024099680286,0.09362345071477644
+WTA,ANOVA return_win_pct by cluster,0.3945263806901695,0.7572169190353655
+Combined,ANOVA return_win_pct by cluster,14.879363513149883,1.595250715358059e-14
+Combined,Cluster 0 vs other clusters,-5.472782289918797,9.828435479657693e-06

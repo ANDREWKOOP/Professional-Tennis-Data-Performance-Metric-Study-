@@ -1,0 +1,361 @@
+---
+title: "Quantifying Return Adaptability in Professional Tennis"
+subtitle: "RAAVBSS performance metric study"
+author: "Andrew Koop"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: flatly
+    code_folding: hide
+params:
+  data_dir: "data/processed"
+  scripts_dir: "scripts"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 150
+)
+
+repo_root <- getwd()
+if (!file.exists(file.path(repo_root, "README.md")) && file.exists(file.path(repo_root, "..", "README.md"))) {
+  repo_root <- normalizePath(file.path(repo_root, ".."), winslash = "/", mustWork = FALSE)
+}
+
+root_file <- function(...) file.path(repo_root, ...)
+data_file <- function(...) file.path(repo_root, params$data_dir, ...)
+script_file <- function(...) file.path(repo_root, params$scripts_dir, ...)
+has_pkg <- function(pkg) requireNamespace(pkg, quietly = TRUE)
+
+read_if_exists <- function(path) {
+  if (file.exists(path)) read.csv(path, stringsAsFactors = FALSE) else NULL
+}
+
+show_missing <- function(path, label = "artifact") {
+  cat(paste0(
+    "> Missing ", label, ": `", path, "`. Add this file to the repository or update `params$data_dir` when rendering.\n\n"
+  ))
+}
+
+include_output <- function(path, caption) {
+  cat(paste0("**", caption, "**\n\n"))
+  if (file.exists(path)) {
+    knitr::include_graphics(path)
+  } else {
+    show_missing(path, "output image")
+  }
+}
+```
+
+# Executive Summary
+
+This capstone introduces **RAAVBSS**, short for **Return Accuracy Across Varying Body Serve Speeds**, as a player-level metric for evaluating how accurately professional tennis players return body serves across slow, medium, and fast serve-speed zones.
+
+The project is designed for a coaching, scouting, or tennis analytics stakeholder who wants more detail than a single return percentage can provide. Instead of asking only whether a player returns well in aggregate, RAAVBSS asks whether the player adapts across different body-serve speeds. The analysis then uses K-Means clustering to group players into returner archetypes and compares those archetypes against serve, return, and total point-win outcomes.
+
+# Portfolio Claim
+
+A concise portfolio version of this project is:
+
+> Developed RAAVBSS, a tennis return-adaptability metric using Grand Slam point-level data, K-Means clustering, PCA, and statistical testing to identify returner archetypes and evaluate whether those archetypes align with match-performance outcomes.
+
+# Research Question
+
+**Can return accuracy against body serves, separated by serve-speed zone, reveal meaningful player archetypes that relate to return-point and overall point-winning performance?**
+
+This question is useful because body serves are strategically important but can be underrepresented by broad match statistics. A returner who handles medium-speed body serves well may not handle fast body serves equally well, and a player who looks average overall may have a very specific tactical strength or weakness.
+
+# Data and Scope
+
+The README describes the source as Jeff Sackmann tennis data covering Grand Slam point-level and match-level data from 2010-2024. The current merge script filters match and point files to years greater than or equal to 2017, so the final public report should reconcile the exact analysis window before publication.
+
+```{r data-inventory}
+expected_files <- c(
+  "player_rse_clusters.csv",
+  "player_rse_clusters_k7.csv",
+  "aggregated_player_stats.csv",
+  "cluster_comparison_stats_cleaned.csv",
+  "clustered_atp.csv",
+  "clustered_wta.csv",
+  "cluster_comparison_atp.csv",
+  "cluster_comparison_wta.csv",
+  "merged_point_data.csv"
+)
+
+expected_data <- data.frame(
+  File = expected_files,
+  Purpose = c(
+    "Player-level RAAVBSS inputs before final clustering",
+    "Player-level RAAVBSS inputs with final k=7 cluster labels",
+    "Player-level serve and return point aggregates",
+    "Merged cluster and performance dataset used for overall comparisons",
+    "ATP clustered RAAVBSS player data",
+    "WTA clustered RAAVBSS player data",
+    "ATP cluster labels joined to return/serve performance outcomes",
+    "WTA cluster labels joined to return/serve performance outcomes",
+    "Merged point-level and match-level Grand Slam data"
+  ),
+  Present = file.exists(data_file(expected_files))
+)
+knitr::kable(expected_data, caption = "Expected analysis inputs and derived datasets")
+```
+
+# Metric Definition
+
+RAAVBSS summarizes return accuracy on body serves across three speed bins:
+
+- `ras_slow`: return accuracy on slower body serves
+- `ras_medium`: return accuracy on medium-speed body serves
+- `ras_fast`: return accuracy on faster body serves
+
+The value of the metric is not only the three individual scores, but the shape across speed bins. A player can be broadly balanced, strong only in one speed zone, weak against pace, or consistently strong across all three bins.
+
+# Analytical Workflow
+
+```{r workflow-table}
+workflow <- data.frame(
+  Step = c(
+    "Merge point and match data",
+    "Create player-level RAAVBSS features",
+    "Scale RAAVBSS features",
+    "Select and fit K-Means clusters",
+    "Visualize cluster structure",
+    "Join clusters to performance outcomes",
+    "Run statistical tests",
+    "Create report outputs"
+  ),
+  Evidence = c(
+    "`tennis_capstone_pipeline.py` downloads and merges raw files",
+    "Derived `ras_slow`, `ras_medium`, and `ras_fast` fields from body serves",
+    "`StandardScaler` in `tennis_capstone_pipeline.py`",
+    "Silhouette scores from k=2 through k=12; final script uses k=7 by default",
+    "Grouped bar plots, PCA scatterplots, radar charts, and violin-boxplots",
+    "`02_merge_clusters_with_performance.py`",
+    "Welch t-tests and ANOVA scripts",
+    "This RMarkdown file and the portfolio report"
+  )
+)
+knitr::kable(workflow, caption = "Project workflow")
+```
+
+# Script Inventory
+
+```{r script-inventory}
+script_names <- c(
+  "tennis_capstone_pipeline.py"
+)
+script_inventory <- data.frame(
+  Script = script_names,
+  Present = file.exists(script_file(script_names))
+)
+knitr::kable(script_inventory, caption = "Committed scripts referenced by the report")
+```
+
+# Cluster Summary
+
+```{r cluster-summary}
+cluster_stats <- read_if_exists(data_file("cluster_comparison_stats_cleaned.csv"))
+if (!is.null(cluster_stats)) {
+  required_cols <- c("cluster", "ras_slow", "ras_medium", "ras_fast", "return_win_pct", "serve_win_pct", "total_win_pct")
+  available_cols <- intersect(required_cols, names(cluster_stats))
+  if (all(c("cluster", "ras_slow", "ras_medium", "ras_fast") %in% available_cols)) {
+    cluster_summary <- aggregate(cluster_stats[setdiff(available_cols, "cluster")], by = list(cluster = cluster_stats$cluster), FUN = mean, na.rm = TRUE)
+    cluster_summary$n_players <- as.integer(table(cluster_stats$cluster)[as.character(cluster_summary$cluster)])
+    knitr::kable(cluster_summary, digits = 3, caption = "Mean RAAVBSS and performance metrics by cluster")
+  } else {
+    cat("> `cluster_comparison_stats_cleaned.csv` exists, but it does not contain the expected cluster summary columns.\n")
+  }
+} else {
+  show_missing(data_file("cluster_comparison_stats_cleaned.csv"), "derived dataset")
+}
+```
+
+# Output Gallery
+
+The following sections collect the project outputs expected from the committed scripts. If an image is missing when this report is rendered, the report prints the expected file path rather than failing silently.
+
+## RAAVBSS Radar Charts
+
+```{r radar-basic, results='asis'}
+include_output(data_file("raavbss_radar_charts.png"), "Cluster radar charts")
+```
+
+```{r radar-annotated, results='asis'}
+include_output(data_file("annotated_radar_plot_with_individuals.png"), "Annotated radar charts with individual players")
+```
+
+## RAAVBSS by Cluster and Tour
+
+```{r atp-raavbss-bar, results='asis'}
+include_output(data_file("atp_raavbss_barplot.png"), "ATP RAAVBSS grouped bar plot")
+```
+
+```{r wta-raavbss-bar, results='asis'}
+include_output(data_file("wta_raavbss_barplot.png"), "WTA RAAVBSS grouped bar plot")
+```
+
+## Return Win Percentage by Cluster
+
+```{r atp-return-cluster, results='asis'}
+include_output(data_file("atp_return_winrate_by_cluster_barplot.png"), "ATP return win percentage by cluster")
+```
+
+```{r wta-return-cluster, results='asis'}
+include_output(data_file("wta_return_winrate_by_cluster_barplot.png"), "WTA return win percentage by cluster")
+```
+
+```{r atp-return-box, results='asis'}
+include_output(data_file("atp_return_win_by_cluster_boxplot.png"), "ATP return win percentage boxplot")
+```
+
+```{r wta-return-box, results='asis'}
+include_output(data_file("wta_return_win_by_cluster_boxplot.png"), "WTA return win percentage boxplot")
+```
+
+## Serve and Return Outcome Distributions
+
+```{r violin-box, results='asis'}
+include_output(data_file("violinbox_return_serve_by_cluster.png"), "Return and serve win percentage violin-boxplot")
+```
+
+## PCA and Cluster Selection
+
+```{r pca-output, results='asis'}
+include_output(data_file("pca_returner_archetypes.png"), "PCA view of returner archetypes")
+```
+
+```{r k-selection-output, results='asis'}
+include_output(data_file("k_selection_silhouette.png"), "K-Means silhouette score by k")
+```
+
+# Recreated Diagnostic Plots
+
+These plots are regenerated directly from CSV outputs when the data is present. They make the report less dependent on manually saved image files.
+
+## RAAVBSS Cluster Profile
+
+```{r recreated-raavbss-bar}
+if (!is.null(cluster_stats) && all(c("cluster", "ras_slow", "ras_medium", "ras_fast") %in% names(cluster_stats)) && has_pkg("ggplot2") && has_pkg("tidyr")) {
+  plot_df <- aggregate(cluster_stats[c("ras_slow", "ras_medium", "ras_fast")], by = list(cluster = cluster_stats$cluster), FUN = mean, na.rm = TRUE)
+  plot_long <- tidyr::pivot_longer(plot_df, cols = c("ras_slow", "ras_medium", "ras_fast"), names_to = "speed_bin", values_to = "return_accuracy")
+  plot_long$speed_bin <- sub("ras_", "", plot_long$speed_bin)
+  ggplot2::ggplot(plot_long, ggplot2::aes(x = factor(cluster), y = return_accuracy, fill = speed_bin)) +
+    ggplot2::geom_col(position = "dodge") +
+    ggplot2::coord_cartesian(ylim = c(0, 1)) +
+    ggplot2::labs(x = "Cluster", y = "Mean return accuracy", fill = "Serve speed bin", title = "Mean RAAVBSS by Cluster") +
+    ggplot2::theme_minimal(base_size = 12)
+} else {
+  cat("RAAVBSS profile plot requires `cluster_comparison_stats_cleaned.csv`, `ggplot2`, and `tidyr`.\n")
+}
+```
+
+## PCA View of Player Archetypes
+
+```{r recreated-pca}
+clustered_players <- read_if_exists(data_file("player_rse_clusters_k7.csv"))
+if (!is.null(clustered_players) && all(c("ras_slow", "ras_medium", "ras_fast", "cluster") %in% names(clustered_players)) && has_pkg("ggplot2")) {
+  pca_input <- scale(clustered_players[c("ras_slow", "ras_medium", "ras_fast")])
+  pca <- prcomp(pca_input, center = FALSE, scale. = FALSE)
+  pca_df <- data.frame(
+    PC1 = pca$x[, 1],
+    PC2 = pca$x[, 2],
+    cluster = factor(clustered_players$cluster)
+  )
+  ggplot2::ggplot(pca_df, ggplot2::aes(x = PC1, y = PC2, color = cluster)) +
+    ggplot2::geom_point(alpha = 0.8, size = 2) +
+    ggplot2::labs(title = "PCA View of Returner Archetypes", color = "Cluster") +
+    ggplot2::theme_minimal(base_size = 12)
+} else {
+  cat("PCA plot requires `player_rse_clusters_k7.csv` and `ggplot2`.\n")
+}
+```
+
+# Statistical Tests
+
+The committed scripts use Welch t-tests and one-way ANOVA to compare return win percentage across clusters. This section recomputes those summaries when the comparison datasets are available.
+
+```{r statistical-tests}
+run_tests <- function(path, label) {
+  df <- read_if_exists(path)
+  if (is.null(df)) return(data.frame(Dataset = label, Test = "missing file", Statistic = NA, P_Value = NA))
+  if (!all(c("cluster", "return_win_pct") %in% names(df))) return(data.frame(Dataset = label, Test = "missing required columns", Statistic = NA, P_Value = NA))
+
+  clustered <- df[!is.na(df$cluster) & !is.na(df$return_win_pct), ]
+  out <- list()
+
+  if (length(unique(clustered$cluster)) > 1) {
+    anova_result <- stats::oneway.test(return_win_pct ~ as.factor(cluster), data = clustered)
+    out[[length(out) + 1]] <- data.frame(Dataset = label, Test = "Welch ANOVA by cluster", Statistic = unname(anova_result$statistic), P_Value = anova_result$p.value)
+  }
+
+  if (0 %in% clustered$cluster) {
+    cluster_0 <- clustered$return_win_pct[clustered$cluster == 0]
+    others <- clustered$return_win_pct[clustered$cluster != 0]
+    if (length(cluster_0) > 1 && length(others) > 1) {
+      t_result <- stats::t.test(cluster_0, others)
+      out[[length(out) + 1]] <- data.frame(Dataset = label, Test = "Cluster 0 vs other clusters", Statistic = unname(t_result$statistic), P_Value = t_result$p.value)
+    }
+  }
+
+  if (length(out) == 0) data.frame(Dataset = label, Test = "not enough data", Statistic = NA, P_Value = NA) else do.call(rbind, out)
+}
+
+test_results <- rbind(
+  run_tests(data_file("cluster_comparison_atp.csv"), "ATP"),
+  run_tests(data_file("cluster_comparison_wta.csv"), "WTA"),
+  run_tests(data_file("cluster_comparison_stats_cleaned.csv"), "Combined")
+)
+knitr::kable(test_results, digits = 5, caption = "Statistical test outputs recomputed from available derived datasets")
+```
+
+# Interpretation Guide
+
+When the report is rendered with the derived CSV files and output images, interpret the project through four questions:
+
+1. **Do clusters differ in the shape of RAAVBSS?** If yes, the metric is capturing distinct returner profiles rather than only noise.
+2. **Do high-RAAVBSS clusters also win more return points?** If yes, the archetype has performance relevance.
+3. **Does the relationship hold separately for ATP and WTA data?** If not, the metric may be tour-specific or sensitive to sample size and serve-speed distributions.
+4. **Do serve win percentage and total win percentage tell a different story?** If yes, RAAVBSS should be framed as a return-specific tactical metric, not an all-purpose player rating.
+
+# Limitations
+
+- The source data begins in 2011, but this reproducible pipeline defaults to 2017-2024 to align with the originally committed merge script and to reduce inconsistency from earlier coverage gaps.
+- K-Means clustering requires judgment about `k`. The pipeline computes silhouette scores across k=2 through k=12, but the final model uses k=7 by default for continuity with the capstone framing.
+- Cluster labels are analytical descriptions, not causal claims. A cluster associated with higher return win percentage does not prove that the RAAVBSS pattern causes winning.
+- Player inclusion thresholds matter. The current merge script filters to players with at least 1,000 return points, which should be reported as an inclusion rule.
+
+# Recommended Repository Additions
+
+```{r recommended-artifacts}
+recommended <- data.frame(
+  Artifact = c(
+    "Rendered HTML from this RMarkdown report",
+    "All output images listed in the Output Gallery",
+    "A data dictionary for each derived CSV",
+    "A reproducible environment file, such as `requirements.txt` or `environment.yml`",
+    "A script or Makefile that runs the pipeline end to end",
+    "A license/provenance note for Jeff Sackmann source data"
+  ),
+  Why_It_Matters = c(
+    "Lets portfolio reviewers read the report without running code",
+    "Makes the visual evidence visible on GitHub and LinkedIn",
+    "Makes RAAVBSS and win-percentage fields understandable",
+    "Allows another analyst to reproduce the project cleanly",
+    "Shows engineering maturity beyond individual scripts",
+    "Clarifies what data can and cannot be redistributed"
+  )
+)
+knitr::kable(recommended, caption = "Recommended next artifacts for a public portfolio repository")
+```
+
+# Final Takeaway
+
+RAAVBSS is strongest as a tactical return-analysis metric. Its portfolio value comes from connecting a sport-specific question to a reproducible analytics workflow: feature engineering from point-level data, unsupervised clustering, visual interpretation, and outcome validation. The public-facing story should emphasize measured evidence, clear limitations, and the practical use case for coaches, scouts, or tennis analysts.
