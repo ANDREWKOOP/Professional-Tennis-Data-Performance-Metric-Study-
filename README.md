@@ -1,4 +1,4 @@
-# RAAVBSS Tennis Return Adaptability Dashboard
+# Pro Tennis Return Adaptability Dashboard
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://q7cjybmtckqnsqdh7rtouq.streamlit.app/)
 
@@ -6,9 +6,9 @@
 
 ## Project Summary
 
-This capstone project introduces **RAAVBSS**: **Return Accuracy Across Varying Body Serve Speeds**.
+This study introduces the metric, **RAAVBSS**: **Return Accuracy Across Varying Body Serve Speeds**.
 
-In plain English, the project asks:
+The project asks the question:
 
 > When a tennis player receives a serve aimed at their body, can they still return the ball accurately as the serve gets faster?
 
