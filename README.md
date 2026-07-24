@@ -1,66 +1,76 @@
-# Professional Tennis Data Performance Metric Study
+# RAAVBSS Tennis Return Adaptability Dashboard
 
-This local project is set up to reproduce the tennis capstone report from raw public data.
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://q7cjybmtckqnsqdh7rtouq.streamlit.app/)
 
-## One-command run
+**Live app:** https://q7cjybmtckqnsqdh7rtouq.streamlit.app/
 
-From PowerShell, run:
+## Project Summary
+
+This capstone project introduces **RAAVBSS**: **Return Accuracy Across Varying Body Serve Speeds**.
+
+In plain English, the project asks:
+
+> When a tennis player receives a serve aimed at their body, can they still return the ball accurately as the serve gets faster?
+
+The project turns Grand Slam point-level tennis data into scouting-style player profiles using feature engineering, K-Means clustering, PCA visualization, and outcome validation against return-point win percentage.
+
+## Best Way to Explore
+
+1. **Start with the live dashboard:**  
+   https://q7cjybmtckqnsqdh7rtouq.streamlit.app/
+
+2. **Read the guided notebook:**  
+   [`notebooks/tennis_capstone_story.ipynb`](notebooks/tennis_capstone_story.ipynb)
+
+3. **Review the compact result summary:**  
+   [`reports/generated_summary.md`](reports/generated_summary.md)
+
+## What the Dashboard Shows
+
+- A tennis glossary for non-tennis readers.
+- RAAVBSS speed bins for ATP and WTA data.
+- Plain-English returner archetypes.
+- Cluster-level return accuracy profiles.
+- Return point win percentage by cluster.
+- A player explorer table.
+- A PCA similarity map of player return profiles.
+- Evidence, caveats, and statistical test summaries.
+
+## Key Result
+
+The strongest profile, **All-Speed Return Anchors**, maintains high return accuracy across slow, medium, and fast body serves and also has the strongest average return-point win percentage.
+
+That supports the practical value of RAAVBSS as a tactical return-analysis metric rather than just a clustering exercise.
+
+## Data and Methods
+
+- **Data source:** Jeff Sackmann Grand Slam point-by-point tennis data, 2017-2024 subset.
+- **Metric:** RAAVBSS, derived from body serves with recorded serve speed and return-depth information.
+- **Modeling:** K-Means clustering on `ras_slow`, `ras_medium`, and `ras_fast`.
+- **Validation:** Cluster comparisons using return point win percentage, ANOVA, and t-tests.
+
+See [`DATA_PROVENANCE.md`](DATA_PROVENANCE.md) for source and license details.
+
+## Repository Guide
+
+```text
+dashboard/streamlit_app.py              Streamlit dashboard source
+streamlit_app.py                        Streamlit Cloud entrypoint
+notebooks/tennis_capstone_story.ipynb   Guided portfolio notebook
+data/processed/                         Dashboard-ready CSVs and charts
+scripts/tennis_capstone_pipeline.py     Reproducible data pipeline
+reports/generated_summary.md            Generated result summary
+DATA_PROVENANCE.md                      Data source and license notes
+```
+
+## Reproducibility
+
+The live dashboard uses committed summary CSVs and image artifacts from `data/processed/`.
+
+To rebuild the processed data locally from raw public files:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\run_tennis_project.ps1
 ```
 
-That script will:
-
-1. Create a local Python virtual environment in `.venv`.
-2. Install the Python packages in `requirements-pipeline.txt`.
-3. Download Grand Slam point-level and match-level files from the Jeff Sackmann archive mirror.
-4. Derive RAAVBSS features from body serves.
-5. Cluster player return profiles.
-6. Generate CSV outputs and plot images.
-7. Try to render the RMarkdown report if `Rscript` is installed.
-
-## Main outputs
-
-- `data/raw/slam_pointbypoint/`: downloaded raw Jeff Sackmann Grand Slam files.
-- `data/processed/`: derived CSV files and PNG plots used by the report.
-- `notebooks/tennis_capstone_story.ipynb`: one large portfolio notebook written for non-tennis readers.
-- `dashboard/streamlit_app.py`: interactive Streamlit dashboard for the project.
-- `streamlit_app.py`: root-level wrapper for Streamlit Community Cloud.
-- `reports/tennis_capstone_report.Rmd`: RMarkdown portfolio report.
-- `reports/portfolio_report.md`: GitHub-friendly written project summary.
-
-## Dashboard
-
-After running the project once, launch the dashboard with:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\run_dashboard.ps1
-```
-
-Then open http://127.0.0.1:8501.
-
-`requirements.txt` is intentionally small and Cloud-first for Streamlit Community Cloud. The full local data-generation environment is in `requirements-pipeline.txt`.
-
-## Story notebook
-
-The main portfolio notebook is:
-
-```text
-notebooks/tennis_capstone_story.ipynb
-```
-
-If you edit the notebook builder and want to regenerate the notebook:
-
-```powershell
-.\.venv\Scripts\python.exe .\scripts\build_story_notebook.py
-```
-
-## Data source and license
-
-The setup script downloads from the Hugging Face mirror of Jeff Sackmann's public tennis datasets:
-
-- Original upstream: https://github.com/JeffSackmann/tennis_slam_pointbypoint
-- Mirror used by this script: https://huggingface.co/datasets/Aneeshers/tennis-sackmann-archive
-
-Jeff Sackmann's tennis data is licensed under CC BY-NC-SA 4.0. Use this project for non-commercial portfolio/academic purposes and keep attribution with any shared outputs.
+`requirements.txt` is intentionally small for Streamlit Cloud. The full local pipeline environment is in `requirements-pipeline.txt`.
